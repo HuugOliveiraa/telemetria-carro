@@ -185,6 +185,10 @@ main{padding:16px; max-width:520px; margin:0 auto;}
 .settings-item .sub{font-size:12px; color:var(--text-dim); margin-top:2px; line-height:1.45;}
 .settings-item .arrow{color:var(--text-dim);}
 .settings-item.danger .ttl{color:var(--red);}
+.field{margin-bottom:12px;}
+.field label{display:block; font-size:12px; color:var(--text-dim); margin-bottom:5px;}
+.field input{width:100%; background:var(--bg); border:1px solid var(--border); border-radius:9px; padding:11px 12px; color:var(--text); font-size:14.5px; font-family:'Inter',sans-serif;}
+.field input:focus{outline:none; border-color:var(--accent);}
 .chip-row{display:flex; gap:7px; padding:0 16px 14px;}
 .chip{flex:1; padding:9px 6px; border-radius:10px; border:1px solid var(--border); background:var(--bg); font-size:12.5px; color:var(--text-dim); cursor:pointer; text-align:center;}
 .chip.active{background:var(--accent-dim); border-color:var(--accent); color:var(--accent); font-weight:600;}
@@ -343,11 +347,10 @@ body.recording nav.bottom .recdot{display:block;}
   <div class="settings-group" id="sensorList"></div>
   <button class="btn-ghost" style="margin-top:-4px" onclick="testSensors()">Testar sensores agora</button>
 
-  <div class="section-title">Painel do Carro</div>
-  <div class="settings-group">
-    <div class="settings-item" onclick="location.href='/painel-carro/'">
-      <div><div class="ttl">Abrir Painel do Carro</div><div class="sub">Gastos, abastecimentos e manutenção. O carro selecionado lá aparece aqui.</div></div><span class="arrow">›</span>
-    </div>
+  <div class="section-title">Seu carro</div>
+  <div class="settings-group" style="padding:14px 16px 4px">
+    <div class="field"><label>Nome do carro</label><input type="text" id="carNameIn" placeholder="Ex: Volkswagen Polo" maxlength="40"></div>
+    <div class="field"><label>Detalhe (placa, ano...)</label><input type="text" id="carSubIn" placeholder="Ex: 2026" maxlength="40"></div>
   </div>
 
   <div class="section-title">Dados</div>
@@ -355,7 +358,7 @@ body.recording nav.bottom .recdot{display:block;}
     <div class="settings-item" onclick="exportData()"><div><div class="ttl">Exportar viagens (.json)</div><div class="sub">Cópia de segurança de todas as viagens</div></div><span class="arrow">⇩</span></div>
     <div class="settings-item" onclick="document.getElementById('importFile').click()"><div><div class="ttl">Importar viagens</div><div class="sub">Restaurar de um arquivo .json (junta com as atuais)</div></div><span class="arrow">⇧</span></div>
     <div class="settings-item" onclick="makeDemo()"><div><div class="ttl">Criar viagem de demonstração</div><div class="sub">Simula um trajeto em Botucatu para você ver como fica. Marcada como "demo" e pode ser apagada.</div></div><span class="arrow">›</span></div>
-    <div class="settings-item danger" onclick="wipeAll()"><div><div class="ttl">Apagar todas as viagens</div><div class="sub">Não afeta os dados do Painel do Carro</div></div></div>
+    <div class="settings-item danger" onclick="wipeAll()"><div><div class="ttl">Apagar todas as viagens</div><div class="sub">Não dá para desfazer</div></div></div>
   </div>
   <input type="file" id="importFile" accept="application/json" style="display:none">
 
@@ -397,7 +400,7 @@ body.recording nav.bottom .recdot{display:block;}
    - Geolocation (GPS): velocidade, distância, rumo, altitude, trajeto
    - DeviceMotion (acelerômetro + giroscópio): forças G, frenagens, arrancadas,
      mudanças de faixa e força lateral
-   Tudo fica salvo no próprio celular (localStorage), separado dos dados do Painel.
+   Tudo fica salvo no próprio celular (localStorage).
    ========================================================================= */
 
 const K_TRIPS = 'tele_trips', K_ACTIVE = 'tele_active', K_SET = 'tele_settings', K_ROUTE = 'tele_r:';
@@ -454,24 +457,9 @@ const V = {
   lerp:(a,b,k)=>[a[0]+(b[0]-a[0])*k, a[1]+(b[1]-a[1])*k, a[2]+(b[2]-a[2])*k],
 };
 
-/* ---------- dados do Painel do Carro (mesmo site = mesmo armazenamento) ---------- */
-function painelCar(){
-  const st = load('app_settings', null);
-  const id = st && st.selectedCarId;
-  if(!id) return null;
-  const car = load('car:'+id, null);
-  return car ? { id, car } : null;
-}
-function painelOdometer(car){
-  let max = Number(car.info.initialOdometer)||0;
-  ['fuel','maintenance','expenses','odoUpdates'].forEach(k => (car[k]||[]).forEach(r => { if(Number(r.odometer)>max) max = Number(r.odometer); }));
-  return max;
-}
+/* ---------- carro (cadastro próprio, em Ajustes) ---------- */
 function carLabel(){
-  const p = painelCar();
-  if(!p) return { name:'Meu carro', sub:'Cadastre o carro no Painel do Carro' };
-  const i = p.car.info;
-  return { name: `${i.brandLabel||''} ${i.model||''}`.trim() || 'Meu carro', sub: [i.plate, i.year].filter(Boolean).join(' · ') || 'Painel do Carro' };
+  return { name: (SETTINGS.carName||'').trim() || 'Meu carro', sub: (SETTINGS.carSub||'').trim() || 'Telemetria por sensores do celular' };
 }
 
 /* =========================================================================
@@ -481,7 +469,7 @@ function carLabel(){
 function newTrip(){
   const c = carLabel();
   return {
-    id: uid(), start: Date.now(), end: null, car: c.name, demo:false, odoSent:false,
+    id: uid(), start: Date.now(), end: null, car: c.name, demo:false,
     distance:0, movingTime:0, stoppedTime:0, gapTime:0,
     maxSpeed:0, turnsL:0, turnsR:0, brakes:0, hardBrakes:0, hardAccels:0, laneChanges:0, stops:0, sharpCurves:0,
     maxDecel:0, maxAccel:0, maxG:0, maxLat:0, altMin:null, altMax:null, elevGain:0,
@@ -1059,7 +1047,7 @@ function renderTrips(){
     html += `<div class="trip" onclick="openTrip('${T.id}')">
       <div class="mini"><canvas data-mini="${T.id}"></canvas></div>
       <div class="mid">
-        <div class="t1">${fmtTime(T.start)} – ${fmtTime(T.end||T.start)}${T.demo?'<span class="tag">demo</span>':''}${T.odoSent?'<span class="tag">no Painel</span>':''}</div>
+        <div class="t1">${fmtTime(T.start)} – ${fmtTime(T.end||T.start)}${T.demo?'<span class="tag">demo</span>':''}</div>
         <div class="t2">${nf(T.distance/1000,1)} km · ${fmtDurShort((T.end-T.start)/1000)} · máx ${Math.round(T.maxSpeed)} km/h</div>
         <div class="t3"><span>↰ ${T.turnsL}</span><span>↱ ${T.turnsR}</span><span>freios ${T.brakes}</span><span>faixas ${T.laneChanges}</span></div>
       </div>
@@ -1093,7 +1081,6 @@ function openTrip(id){
   const r = load(K_ROUTE+id, null);
   const dur = (T.end - T.start)/1000, sc = T.score;
   const avg = T.movingTime > 5 ? T.distance/T.movingTime*3.6 : 0;
-  const painel = painelCar();
   const scTxt = sc==null ? 'Viagem curta demais para dar nota.' : sc>=85 ? 'Condução suave. Poucas frenagens e arrancadas bruscas.' : sc>=70 ? 'Boa, com alguns momentos mais bruscos.' : sc>=50 ? 'Vários eventos bruscos para a distância rodada.' : 'Muitas frenagens/arrancadas fortes. Atenção!';
   $('tripSheet').innerHTML = `
     <div class="grab"></div><button class="close" onclick="closeSheet()">×</button>
@@ -1117,7 +1104,6 @@ function openTrip(id){
       ${card('up','var(--green)','Aceleração máx.', nf(T.maxAccel,1), 'm/s²', nf(T.maxAccel/G0,2)+' G')}
       ${card('g','var(--yellow)','Pico de força G', nf(T.maxG,2), 'G', `lateral máx. ${nf(T.maxLat,1)} m/s²`, 'wide')}
     </div>
-    ${painel ? `<button class="btn-primary" id="odoBtn" ${T.odoSent?'disabled style="opacity:.55"':''} onclick="sendOdo('${T.id}')">${T.odoSent?'Km já lançada no Painel do Carro ✓':`Somar ${nf(T.distance/1000,1)} km ao hodômetro do Painel`}</button>` : ''}
     <button class="btn-ghost" onclick="exportTrip('${T.id}')">Exportar esta viagem</button>
     <button class="btn-danger" onclick="deleteTrip('${T.id}')">Excluir viagem</button>`;
   $('ov-trip').classList.add('show');
@@ -1129,20 +1115,6 @@ function deleteTrip(id){
   TRIPS = TRIPS.filter(t=>t.id!==id); save(K_TRIPS, TRIPS);
   try{ localStorage.removeItem(K_ROUTE+id); }catch(e){}
   closeSheet(); renderAll(); showToast('Viagem excluída.');
-}
-function sendOdo(id){
-  const T = TRIPS.find(t=>t.id===id); const p = painelCar();
-  if(!T || !p || T.odoSent) return;
-  const cur = painelOdometer(p.car), km = Math.round(T.distance/1000), next = cur + km;
-  if(km < 1){ showToast('Menos de 1 km: nada a lançar.'); return; }
-  if(!confirm(`Lançar no Painel do Carro:\n\nHodômetro atual: ${cur.toLocaleString('pt-BR')} km\n+ ${km} km desta viagem (GPS, aproximado)\n= ${next.toLocaleString('pt-BR')} km`)) return;
-  const car = load('car:'+p.id, null); if(!car) return;
-  car.odoUpdates = car.odoUpdates || [];
-  car.odoUpdates.push({ id: uid(), date: isoLocal(new Date(T.end||T.start)), odometer: next });
-  if(!save('car:'+p.id, car)){ showToast('Não consegui salvar no Painel.'); return; }
-  T.odoSent = true; save(K_TRIPS, TRIPS);
-  showToast(`Hodômetro do Painel atualizado: ${next.toLocaleString('pt-BR')} km`);
-  openTrip(id); renderTrips();
 }
 
 /* ---- ESTATÍSTICAS ---- */
@@ -1199,6 +1171,9 @@ function renderStats(){
 
 /* ---- AJUSTES ---- */
 function renderSettings(){
+  const ni = $('carNameIn'), si = $('carSubIn');
+  if(document.activeElement !== ni) ni.value = SETTINGS.carName || '';
+  if(document.activeElement !== si) si.value = SETTINGS.carSub || '';
   $('sensChips').innerHTML = Object.keys(SENS).map(k=>`<div class="chip ${SETTINGS.sens===k?'active':''}" onclick="setSens('${k}')">${SENS_LABEL[k]}</div>`).join('');
   const now = Date.now();
   const rows = [
@@ -1209,6 +1184,10 @@ function renderSettings(){
   ];
   $('sensorList').innerHTML = rows.map(r=>`<div class="sensor-row"><span>${r[0]}</span><span class="st ${r[1][0]}">${r[1][1]}</span></div>`).join('');
 }
+['carNameIn','carSubIn'].forEach(id => $(id).addEventListener('input', ()=>{
+  SETTINGS.carName = $('carNameIn').value; SETTINGS.carSub = $('carSubIn').value;
+  save(K_SET, SETTINGS); renderHeader();
+}));
 function setSens(k){ SETTINGS.sens = k; save(K_SET, SETTINGS); if(ENG) ENG.k = SENS[k]; renderSettings(); showToast(`Sensibilidade: ${SENS_LABEL[k]}`); }
 const sensorTest = { acc:null, gyro:null };
 async function testSensors(){

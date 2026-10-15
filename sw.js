@@ -1,6 +1,6 @@
 // Service worker da Telemetria: deixa o app abrir mesmo sem internet.
 // Ao publicar uma versão nova do index.html, troque o número abaixo (v1 -> v2...).
-const CACHE = 'telemetria-v1';
+const CACHE = 'telemetria-v2';
 const APP_FILES = [
   './',
   './index.html',
