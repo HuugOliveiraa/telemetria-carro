@@ -1,0 +1,18 @@
+{
+  "id": "./",
+  "name": "Telemetria do Carro",
+  "short_name": "Telemetria",
+  "description": "Velocidade, curvas, frenagens, forças G e trajeto das suas viagens usando os sensores do celular.",
+  "lang": "pt-BR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#121317",
+  "theme_color": "#121317",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
